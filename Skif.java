@@ -22,7 +22,7 @@ public class Skif extends AdvancedRobot {
 
 	/* ---------- Movement Variables ---------- */
 	private static final int 		MV_FACTOR			= 3000;
-	private static final int		T_DIST				= 210;
+	private static final int		T_DIST				= 180;
 	private static double 		moveDir;
 	private static double			enemyEnergy;
 	private static int				moveMode;
@@ -31,9 +31,9 @@ public class Skif extends AdvancedRobot {
 	private static final int		B_POWER				= 2; 	// (-1) asin offset below
 	//private static final int		B_VELOCITY			= (int)(20 - 3 * B_POWER) - 1;
 	private static final int		ANTIRAM_FACTOR		= 120;
-	private static final int		D_HISTORY			= 16;
-//	private static double			accDistance;
-//	private static double			offSet;
+	private static final int		D_HISTORY			= 32;
+	private static double			accReversal;
+	private static double			offSet;
 
 	public void run() {
 		// Color Identification
@@ -47,10 +47,9 @@ public class Skif extends AdvancedRobot {
 	public void onScannedRobot(ScannedRobotEvent e) {
 	
 		// Variables	
-		int tickIndex = 0;
-		double offSet = 0;
 		double absoluteBearing;
 		double bulletPower;
+		double lateralVelocity;
 
 
 		/* ---------- Musashi Movement Logic ----------	*/
@@ -60,22 +59,13 @@ public class Skif extends AdvancedRobot {
 			((T_DIST - (e.getDistance())) * (getVelocity() / MV_FACTOR))));
 
 		/* ---------- Gun Logic ---------- */
-		// Save lateral velocities to compute for offset
-		//accDistance += e.getVelocity() * Math.sin(e.getHeadingRadians() - 
-			//(absoluteBearing += getHeadingRadians()));
+		// Save signum lateral velocities to compute for reversal bias
+		accReversal += Math.signum(lateralVelocity = e.getVelocity() * Math.sin(e.getHeadingRadians() - 
+			(absoluteBearing += getHeadingRadians())));
 
-		enemyHistory = String.valueOf((char)(e.getVelocity() * 
-			Math.sin(e.getHeadingRadians() - (absoluteBearing += 
-			getHeadingRadians())))).concat(enemyHistory);
-
-		do {
-			offSet += (short)enemyHistory.charAt(tickIndex);
-			//out.println(tickIndex); 
-		} while (tickIndex++ < D_HISTORY); 
-
-		// Normal Linear targeting with Bullet power and speed calculator
+		// Linear targeting with Bullet power and speed calculator
 		setTurnGunRightRadians(Utils.normalRelativeAngle(absoluteBearing + 
-			(offSet / D_HISTORY / Rules.getBulletSpeed(bulletPower = B_POWER + 
+			(Math.abs(lateralVelocity) * offSet / Rules.getBulletSpeed(bulletPower = B_POWER + 
 			(int)(ANTIRAM_FACTOR / e.getDistance()))) - getGunHeadingRadians()));
 		
 		// Fire with self-preservation
@@ -84,13 +74,12 @@ public class Skif extends AdvancedRobot {
 		}
 
 		// Offset learning mechanism
-		// Accumulrate lateral velocities which determines distance
-		// Divide by number of ticks to generate historical lateral velocity
-		//if (getTime() % D_HISTORY  == 0) {
-			//offSet = accDistance / D_HISTORY;
-			//accDistance = 0;		
-		//}
-
+		// Accumulrate signum of lateral velocities which determines reversals
+		// Divide by number of ticks to generate reversal tendency ratio
+		if (getTime() % D_HISTORY  == 0) {
+			offSet = accReversal / D_HISTORY;
+			accReversal = 0;		
+		}
 
 
 		/* ---------- Movement Logic ---------- */
@@ -116,23 +105,6 @@ public class Skif extends AdvancedRobot {
 	public void onHitWall(HitWallEvent e) {
 		moveDir = -moveDir;
 	}
-
-
-	/**
-	 * Symbolic log of enemy movements for lateral velocity storage.
-	 * Preloaded to prevent StringIndexOutOfBoundsException.
-	 */
-	private static String enemyHistory = ""
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 
-		+ (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0 + (char) 0;
 
 
 	/**
